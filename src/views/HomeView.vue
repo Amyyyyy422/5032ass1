@@ -2,23 +2,46 @@
 import { ref } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Rating from 'primevue/rating';
 
+const mark = ref(0)
 const formData = ref({
   username: '',
   gender: '',
+  email: '',
+  age: '',
   password: '',
   confirmPassword: '',
-  isAustralian: false,
   reason: '',
-  suburb: 'Clayton' 
+  agree: false
 })
 
 const submittedCards = ref([])
 
 const submitForm = () => {
   validateName(true)
+  validateEmail(true)
+  validateAge(true)
   validatePassword(true)
-  if (!errors.value.username && !errors.value.password) {
+  validateConfirmPassword(true)
+  validateReason(true)
+
+  // Must agree to terms and conditions
+  if (!formData.value.agree) {
+    errors.value.agree = 'You must agree to the terms and conditions.'
+  } else {
+    errors.value.agree = null
+  }
+
+  const hasBlockingErrors =
+    !!errors.value.username ||
+    !!errors.value.email ||
+    !!errors.value.age ||
+    !!errors.value.password ||
+    !!errors.value.confirmPassword ||
+    !!errors.value.agree
+
+  if (!hasBlockingErrors) {
     submittedCards.value.push({ ...formData.value })
     clearForm()
   }
@@ -27,11 +50,13 @@ const submitForm = () => {
 const clearForm = () => {
   formData.value = {
     username: '',
+    gender: '',
+    email: '',
+    age: '',
     password: '',
     confirmPassword: '',
-    isAustralian: false,
     reason: '',
-    gender: ''
+    agree: false
   }
 }
 
@@ -39,9 +64,11 @@ const errors = ref({
   username: null,
   password: null,
   confirmPassword: null,
-  resident: null,
+  email: null,
+  age: null,
   gender: null,
-  reason: null
+  reason: null,
+  agree: null
 })
 
 const validateName = (blur) => {
@@ -49,6 +76,35 @@ const validateName = (blur) => {
     if (blur) errors.value.username = 'Name must be at least 3 characters'
   } else {
     errors.value.username = null
+  }
+}
+
+const validateEmail = (blur) => {
+  const email = formData.value.email.trim()
+  // Rigorous email verification
+  const re =
+    /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+  if (!email) {
+    if (blur) errors.value.email = 'Email is required.'
+  } else if (!re.test(email)) {
+    if (blur) errors.value.email = 'Please enter a valid email address.'
+  } else {
+    errors.value.email = null
+  }
+}
+
+const validateAge = (blur) => {
+  const n = Number(formData.value.age)
+  const isInteger = Number.isInteger(n)
+
+  if (formData.value.age === '') {
+    if (blur) errors.value.age = 'Age is required.'
+  } else if (!isInteger) {
+    if (blur) errors.value.age = 'Age must be a whole number.'
+  } else if (n < 12 || n > 99) {
+    if (blur) errors.value.age = 'Age must be between 12 and 99.'
+  } else {
+    errors.value.age = null
   }
 }
 
@@ -90,17 +146,34 @@ const validateReason = () => {
     errors.value.reason = null
   }
 }
+
 </script>
 
 <template>
-  <!-- 🗄️ W5. Library Registration Form -->
+  <!-- title -->
   <div class="container mt-5">
     <div class="row">
       <div class="col-md-8 offset-md-2">
-        <h1 class="text-center">🗄️ W5. Library Registration Form</h1>
-        <p class="text-center">
-          Let's build some more advanced features into our form.
-        </p>
+        <h1 class="text-center">Register to get started!</h1>
+        <!---<p class="text-center">
+          Enter your login details below.
+        </p>-->
+        <!-- Add: Youth mental health & wellbeing Explanatory paragraph (left-aligned with Username) -->
+        <div class="mb-4 text-start">
+          <p class="mb-2">
+            Are you in Australia, 12 to 25 or concerned about a young person 12 to 25?
+          </p>
+          <p class="mb-2">
+            Creating an account is quick, easy, and gives you the choice to access any of these extras that you want to...
+          </p>
+          <ul class="mb-0">
+            <li>access our professional services like 1-on-1 chat</li>
+            <li>build a personal mental health toolkit with resources that you like</li>
+            <li>participate in our community by contributing to chats or sharing resources</li>
+            <li>save your activity and keep a private record of whatever you need</li>
+          </ul>
+        </div>
+
         <form @submit.prevent="submitForm">
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
@@ -125,7 +198,36 @@ const validateReason = () => {
               </select>
             </div>
           </div>
-            
+           
+          <!-- Add second line: Email / Age -->
+          <div class="row mb-3">
+            <div class="col-md-6 col-sm-6">
+              <label for="email" class="form-label">Email</label>
+              <input
+                type="email"
+                class="form-control"
+                id="email"
+                @blur="() => validateEmail(true)"
+                @input="() => validateEmail(false)"
+                v-model="formData.email"
+              />
+              <div v-if="errors.email" class="text-danger">{{ errors.email }}</div>
+            </div>
+
+            <div class="col-md-6 col-sm-6">
+              <label for="age" class="form-label">Age</label>
+              <input
+                type="number"
+                class="form-control"
+                id="age"
+                @blur="() => validateAge(true)"
+                @input="() => validateAge(false)"
+                v-model="formData.age"
+              />
+              <div v-if="errors.age" class="text-danger">{{ errors.age }}</div>
+            </div>
+          </div>
+
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
               <label for="password" class="form-label">Password</label>
@@ -154,20 +256,6 @@ const validateReason = () => {
             </div>
           </div>
 
-          <div class="row mb-3">
-            <div class="col-md-6 col-sm-6">
-              <div class="form-check">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  id="isAustralian"
-                  v-model="formData.isAustralian"
-                />
-                <label class="form-check-label" for="isAustralian">Australian Resident?</label>
-              </div>
-            </div>
-          </div>
-
           <div class="mb-3">
             <label for="reason" class="form-label">Reason for joining</label>
             <textarea
@@ -178,10 +266,23 @@ const validateReason = () => {
               @input="validateReason"></textarea>
             <div v-if="errors.reason" class="friend-alert">{{ errors.reason }}</div>
           </div>
+          
+          <!-- Terms and conditions checkbox -->
           <div class="mb-3">
-            <label for="suburb" class="form-label">Suburb</label>
-            <input type="text" class="form-control" id="suburb" v-model="formData.suburb" />
+            <div class="form-check">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                id="agree"
+                v-model="formData.agree"
+              />
+              <label class="form-check-label" for="agree">
+                I agree to the terms and conditions.
+              </label>
+            </div>
+            <div v-if="errors.agree" class="text-danger">{{ errors.agree }}</div>
           </div>
+
           <div class="text-center">
             <button type="submit" class="btn btn-primary me-2">Submit</button>
             <button type="button" class="btn btn-secondary" @click="clearForm">Clear</button>
@@ -191,17 +292,19 @@ const validateReason = () => {
     </div>
   </div>
 
+  <!-- PrimeVue DataTable -->
   <div class="row mt-5">
     <h4>This is a Primevue Datatable.</h4>
     <DataTable :value="submittedCards" tableStyle="min-width: 50rem">
       <Column field="username" header="Username"></Column>
-      <Column field="password" header="Password"></Column>
-      <Column field="isAustralian" header="Australian Resident"></Column>
       <Column field="gender" header="Gender"></Column>
+      <Column field="email" header="E-mail"></Column>
+      <Column field="age" header="Age"></Column>
       <Column field="reason" header="Reason"></Column>
     </DataTable>
   </div>
 
+  <!-- Cards + Rating -->
   <div class="row mt-5" v-if="submittedCards.length">
     <div class="d-flex flex-wrap justify-content-start">
       <div
@@ -213,14 +316,14 @@ const validateReason = () => {
         <div class="card-header">User Information</div>
         <ul class="list-group list-group-flush">
           <li class="list-group-item">Username: {{ card.username }}</li>
-          <li class="list-group-item">Password: {{ card.password }}</li>
-          <li class="list-group-item">
-            Australian Resident: {{ card.isAustralian ? 'Yes' : 'No' }}
-          </li>
+          <li class="list-group-item">E-mail: {{ card.email }}</li>
+          <li class="list-group-item">Age: {{ card.age }}</li>
           <li class="list-group-item">Gender: {{ card.gender }}</li>
           <li class="list-group-item">Reason: {{ card.reason }}</li>
         </ul>
       </div>
+      <Rating v-model="mark" />
+      <div>Current rate is {{ mark }}</div>
     </div>
   </div>
 </template>
@@ -243,8 +346,8 @@ const validateReason = () => {
 
 /* ID selectors */
 #username:focus,
+#email:focus,
 #password:focus,
-#isAustralian:focus,
 .card {
   border: 1px solid #ccc;
   border-radius: 10px;

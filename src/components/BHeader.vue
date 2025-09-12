@@ -8,6 +8,10 @@ const handleLogout = () => {
   logout();
   router.push('/login')
 }
+
+const handleGoAdmin = () => {
+  router.push('/admin')
+}
 </script>
 
 <template>
@@ -18,7 +22,7 @@ const handleLogout = () => {
       <ul class="nav nav-pills">
         <li class="nav-item">
           <router-link to="/" class="nav-link" active-class="active" aria-current="page"
-            >Home (Week 5)</router-link
+            >create account</router-link
           >
         </li>
         <li class="nav-item">
@@ -27,12 +31,20 @@ const handleLogout = () => {
         <li class="nav-item">
           <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
         </li>
+
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
         </li>
+        <!--
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin && currentRole === 'admin'">$$ {{ currentRole }}</button>
+        </li> 
+        -->
+
+        <li class="nav-item" v-if="isLogin && currentRole === 'admin'">
+          <button class="nav-link" type="button" @click="handleGoAdmin">$$ {{ currentRole }}</button>
         </li>
+
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin" @click="handleLogout">Logout</button>
         </li>
