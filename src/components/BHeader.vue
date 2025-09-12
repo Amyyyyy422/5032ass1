@@ -1,5 +1,5 @@
 <script setup>
-import { isLogin, logout } from '@/auth'
+import { isLogin, logout, currentUser, currentRole } from '@/auth'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -26,6 +26,12 @@ const handleLogout = () => {
         </li>
         <li class="nav-item">
           <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" active-class="active" v-if="isLogin && currentRole === 'admin'">$$ {{ currentRole }}</button>
         </li>
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin" @click="handleLogout">Logout</button>
