@@ -29,9 +29,12 @@ const handleGoAdmin = () => {
           <router-link to="/about" class="nav-link" active-class="active" v-if="isLogin">About</router-link>
         </li>
         <li class="nav-item">
+          <router-link to="/map" class="nav-link" active-class="active" v-if="!isLogin">Map</router-link>
+        </li>
+        <li class="nav-item">
           <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
         </li>
-
+      
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
         </li>
