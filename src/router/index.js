@@ -5,7 +5,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AboutView from '../views/AboutView.vue'
 import LoginView from '../views/LoginView.vue'
-import AdminView from '../views/AdminView.vue'
+import AdminPanel from '../views/AdminPanel.vue'
 import MapView from '../views/MapView.vue'
 
 // simple auth state
@@ -14,7 +14,7 @@ import { isLogin } from '../auth'
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
   { path: '/about', name: 'About', component: AboutView, meta: { requiresAuth: true } },
-  { path: '/admin', name: 'Admin', component: AdminView, meta: { requiresAuth: true } },
+  { path: '/admin', name: 'Admin', component: AdminPanel, meta: { requiresAuth: true } },
   { path: '/login', name: 'Login', component: LoginView },
   { path: '/map', name: 'Map', component: MapView },
   { path: '/:pathMatch(.*)*', redirect: { name: 'Home' } }

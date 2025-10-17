@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+/*import { onMounted, ref } from 'vue'
 import mapboxgl from 'mapbox-gl'
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder'
 
@@ -112,7 +112,7 @@ const showRoute = async () => {
     map.value.fitBounds(bounds);
   } catch (error) {
     console.error('Error fetching directions:', error);
-  }
+  }*/
 </script>
 
 <style>

@@ -11,6 +11,7 @@ import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
 import { FilterMatchMode } from '@primevue/core/api'
 import Button from 'primevue/button'
+import emailjs from '@emailjs/browser'
 
 const selectedUserType = ref('all')
 const userType = ref([
@@ -21,7 +22,7 @@ const userType = ref([
 
 const user = ref([
   { id: 1, name: 'Amy', email: '646323156@qq.com', role: 'user', status: 'active' },
-  { id: 2, name: 'Siliang', email: 'amyren123456@gmail.com', role: 'admin', status: 'active' },
+  { id: 2, name: 'Admin', email: 'amyren123456@gmail.com', role: 'admin', status: 'active' },
   { id: 3, name: 'Charlie', email: 'charlie@example.com', role: 'user', status: 'inactive' },
   { id: 4, name: 'Doris', email: 'doris@example.com', role: 'advanced', status: 'active' },
   { id: 5, name: 'Evan', email: 'evan@example.com', role: 'user', status: 'active' },
@@ -93,7 +94,31 @@ const onExportSelected = () => {
   downloadCSV(filename, csv)
 }
 
+const bulkSend = async () => {
+  if (!selectedRows.value.length) {
+    alert('Please select at least one user to send email.')
+    return
+  }
 
+  for (const user of selectedRows.value) {
+    try {
+      await emailjs.send(
+        'service_4zpap0t',
+        'template_8ptenqh',
+        {
+          to_email: user.email,
+          name: user.name,
+          email: 'test@test.com'
+        },
+        {
+          publicKey: 'WgxFFSGsyHiCgwIcI'
+        }
+      )
+    } catch (error) {
+      console.log(error)
+    }
+  }
+}
 
 </script>
 

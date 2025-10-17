@@ -22,7 +22,7 @@ const handleGoAdmin = () => {
       <ul class="nav nav-pills">
         <li class="nav-item">
           <router-link to="/" class="nav-link" active-class="active" aria-current="page"
-            >create account</router-link
+            >Create Account</router-link
           >
         </li>
         <li class="nav-item">
@@ -38,14 +38,14 @@ const handleGoAdmin = () => {
         <li class="nav-item">
           <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
         </li>
-        <!--
-        <li class="nav-item">
-          <button class="nav-link" active-class="active" v-if="isLogin && currentRole === 'admin'">$$ {{ currentRole }}</button>
-        </li> 
-        -->
 
+        <!--
         <li class="nav-item" v-if="isLogin && currentRole === 'admin'">
-          <button class="nav-link" type="button" @click="handleGoAdmin">$$ {{ currentRole }}</button>
+          <button class="nav-link" active-class="active" type="button" @click="handleGoAdmin">Admin Panel</button>
+        </li>
+        -->
+        <li class="nav-item" v-if="isLogin && currentRole === 'admin'">
+          <router-link to="/admin" class="nav-link" active-class="active">Admin Panel</router-link>
         </li>
 
         <li class="nav-item">
