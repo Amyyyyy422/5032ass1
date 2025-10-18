@@ -1,43 +1,48 @@
+import { initializeApp } from 'firebase/app'
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 
-const LS_LOGIN = 'isLogin'
-const LS_USER = 'username'
-const LS_ROLE = 'role'
-
-export const isLogin = ref(localStorage.getItem(LS_LOGIN) === 'true')
-export const currentUser = ref(localStorage.getItem(LS_USER))
-export const currentRole = ref(localStorage.getItem(LS_ROLE))
-
-
-const users = [{ username: 'admin', password: '123456', role: 'admin' },
-    { username: 'Amy', password: '123456', role: 'user' }]
-
-export function login(username, password) {
-    const found = users.find(user => user.username === username && user.password === password);
-    if (found) {
-        isLogin.value = true
-        currentUser.value = found.username
-        currentRole.value = found.role
-        localStorage.setItem(LS_LOGIN, 'true')
-        localStorage.setItem(LS_USER, found.username)
-        localStorage.setItem(LS_ROLE, found.role)
-        return true  
-    }else{
-        isLogin.value = false
-        currentUser.value = null
-        currentRole.value = null
-        localStorage.removeItem(LS_LOGIN)
-        localStorage.removeItem(LS_USER)
-        localStorage.removeItem(LS_ROLE)
-        return false
-    }
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FB_API_KEY,
+  authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FB_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FB_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FB_APP_ID,
 }
 
-export function logout() {
+const app = initializeApp(firebaseConfig)
+
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+
+export const isLogin = ref(false)
+export const currentUser = ref(null)
+export const currentRole = ref(null)
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
     isLogin.value = false
     currentUser.value = null
     currentRole.value = null
-    localStorage.removeItem(LS_LOGIN)
-    localStorage.removeItem(LS_USER)
-    localStorage.removeItem(LS_ROLE)
+    return
+  }
+  isLogin.value = true
+  currentUser.value = user.displayName || user.email || 'User'
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid))
+    currentRole.value = snap.exists() ? (snap.data().role || 'user') : 'user'
+  } catch {
+    currentRole.value = 'user'
+  }
+})
+
+export async function loginWithEmail(email, password) {
+  const { user } = await signInWithEmailAndPassword(auth, email, password)
+  return user
+}
+
+export async function logout() {
+  await signOut(auth)
 }

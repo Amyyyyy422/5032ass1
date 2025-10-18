@@ -1,119 +1,129 @@
 <template>
   <div class="about mt-5 row">
     <div class="col-md-8 offset-md-2">
-      <h1 class="text-center">Maps</h1>
+      <h1 class="text-center">Map</h1>
+      <!--
       <button @click="getCurrentLocation" class="location-button">Current location</button>
       <button @click="showRoute" class="route-button">Show route</button>
+      -->
       <div class="map-container">
-        <div id="map" class="map"></div>
+        <div ref="mapEl" class="map"></div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-/*import { onMounted, ref } from 'vue'
 import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
+import { ref, onMounted, onUnmounted } from 'vue'
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder'
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css'
 
-const map = ref(null)           // 地图实例
-const currentLocation = ref(null) // 用户当前位置
-const destination = ref(null)     // 目的地位置
+import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions'
+import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css'
 
-// 设置 Mapbox Access Token
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_KEY
+import axios from 'axios'
 
-// 初始化地图和搜索功能
+const mapEl = ref(null)
+let map 
+let searchMarker = null
+
 onMounted(() => {
-  console.log(import.meta.env.VITE_MAPBOX_ACCESS_KEY)
-  // 初始化地图
-  map.value = new mapboxgl.Map({
-    container: 'map', // container ID
-    style: 'mapbox://styles/mapbox/streets-v12', // style URL
-    center: [144.9631, -37.8136], // Melbourne [lng, lat]
-    zoom: 9 // starting zoom
-    });
+  mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
+  map = new mapboxgl.Map({
+    container: mapEl.value,
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [144.9631, -37.8136],
+    zoom: 11
+  })
+  map.addControl(new mapboxgl.NavigationControl(), 'top-left')
 
-    // 添加Geocoder插件进行地点搜索
-    const geocoder = new MapboxGeocoder({
-      accessToken: mapboxgl.accessToken,
-      mapboxgl: mapboxgl,
-      marker: false // 不自动添加标记
-    });
+  const center = [144.9631, -37.8136]
+  new mapboxgl.Marker()
+    .setLngLat(center)
+    .setPopup(new mapboxgl.Popup({ offset: 8 }).setText('Melbourne CBD'))
+    .addTo(map)
 
-    // 将Geocoder插入到地图
-    map.value.addControl(geocoder);
+  const geocoder = new MapboxGeocoder({
+    accessToken: mapboxgl.accessToken,
+    mapboxgl,
+    placeholder: 'Search places',
+    marker: false,
+    language: 'en'
+  })
+  map.addControl(geocoder, 'top-right')
 
-    // 当选择一个搜索结果时，记录目的地坐标
-    geocoder.on('result', (event) => {
-      destination.value = event.result.geometry.coordinates;
-      
-      // 在地图上添加标记
-        new mapboxgl.Marker()
-            .setLngLat(destination.value)
-            .addTo(map.value);
-    });
-});
+  geocoder.on('result', async (e) => {
+    const coords = e.result?.center
+    console.log(e.result)
+    if (!coords) return
+    const [lng, lat] = coords
 
-// 获取用户当前位置
-const getCurrentLocation = () => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((position) => {
-      currentLocation.value = [longitude, latitude];
+    if (searchMarker) searchMarker.remove()
+    searchMarker = new mapboxgl.Marker({ color: '#3FB1CE' })
+      .setLngLat([lng, lat])
+      .setPopup(new mapboxgl.Popup({ offset: 8 }).setText(e.result.place_name || 'Selected place'))
+      .addTo(map)
 
-      // 在地图上显示当前位置
-      new mapboxgl.Marker({ color: 'red' })
-        .setLngLat(currentLocation.value)
-        .addTo(map.value);
+    const origin = map.getCenter()
 
-      // 将地图中心移动到当前位置
-      map.value.flyTo({ center: currentLocation.value, zoom: 12 });
-    }, (error) => {
-      console.error('Error getting location:', error);
-    });
-  } else {
-    alert('Geolocation is not supported by this browser.');
-  }
-};
+    // Directions API
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin.lng},${origin.lat};${lng},${lat}?geometries=geojson&access_token=${mapboxgl.accessToken}`
 
-// 显示从当前位置到目的地的路径
-const showRoute = async () => {
-  if (!currentLocation.value || !destination.value) {
-    alert('Please first obtain your current location and search for the destination.');
-    return;
-  }
+    const res = await axios.get(url)
+    const data = res.data.routes[0].geometry
+    const url2 = `https://api.mapbox.com/geocoding/v5/mapbox.places/gym.json
+  ?proximity=144.9631,-37.8136
+  &limit=10
+  &country=AU
+  &language=en
+  &access_token=${mapboxgl.accessToken}`.replace(/\s+/g, '') 
 
-  const directionsUrl = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLocation.value[0]},${currentLocation.value[1]};${destination.value[0]},${destination.value[1]}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+    const res2 = await axios.get(url2)
+    console.log(res2.data)
+    
+    if (map.getSource('road')) {
+      map.removeLayer('route')
+      map.removeSource('road')
+    }
 
-  try {
-    const response = await fetch(directionsUrl);
-    const data = await response.json();
-    const route = data.routes[0].geometry;
+    map.addSource('road', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: data
+      }
+    })
 
-    // 在地图上显示路径
-    map.value.addLayer({
+    map.addLayer({
       id: 'route',
       type: 'line',
-      source: { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: route } },
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
+      source: 'road',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': '#3887be',
-        'line-width': 5,
-        'line-opacity': 0.75
+        'line-color': '#3FB1CE',
+        'line-width': 5
       }
-    });
+    })
 
-    // 将地图视角调整以显示整个路径
-    const bounds = new mapboxgl.LngLatBounds();
-    route.coordinates.forEach(coord => bounds.extend(coord));
-    map.value.fitBounds(bounds);
-  } catch (error) {
-    console.error('Error fetching directions:', error);
-  }*/
+    map.flyTo({ center: [lng, lat], zoom: 12 })
+  })
+})
+
+onUnmounted(() => map?.remove())
 </script>
 
 <style>
+.map-container {
+  width: 100%;
+  height: 60vh;       
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map {
+  width: 100%;
+  height: 100%;      
+}
 </style>

@@ -15,28 +15,18 @@ const handleGoAdmin = () => {
 </script>
 
 <template>
-  <!-- Using Bootstrap's Header template (starter code) -->
-  <!-- https://getbootstrap.com/docs/5.0/examples/headers/ -->
   <div class="container">
     <header class="d-flex justify-content-center py-3">
       <ul class="nav nav-pills">
         <li class="nav-item">
-          <router-link to="/" class="nav-link" active-class="active" aria-current="page"
-            >Create Account</router-link
-          >
+          <router-link to="/" class="nav-link" active-class="active" v-if="!isLogin">Create Account</router-link>
         </li>
+        
         <li class="nav-item">
-          <router-link to="/about" class="nav-link" active-class="active" v-if="isLogin">About</router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/map" class="nav-link" active-class="active" v-if="!isLogin">Map</router-link>
+          <router-link to="/map" class="nav-link" active-class="active" v-if="isLogin">Map</router-link>
         </li>
         <li class="nav-item">
           <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
-        </li>
-      
-        <li class="nav-item">
-          <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
         </li>
 
         <!--
@@ -45,7 +35,11 @@ const handleGoAdmin = () => {
         </li>
         -->
         <li class="nav-item" v-if="isLogin && currentRole === 'admin'">
-          <router-link to="/admin" class="nav-link" active-class="active">Admin Panel</router-link>
+          <router-link to="/admin" class="nav-link" active-class="active" @click="handleGoAdmin">Admin Panel</router-link>
+        </li>
+
+        <li class="nav-item">
+          <button class="nav-link" active-class="active" v-if="isLogin">Hi, {{ currentUser }}</button>
         </li>
 
         <li class="nav-item">

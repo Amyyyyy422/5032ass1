@@ -1,40 +1,60 @@
-// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
+import HomeView from '@/views/HomeView.vue'
+import MapView from '@/views/MapView.vue'
+import AdminPanel from '@/views/AdminPanel.vue'
+import LoginView from '@/views/LoginView.vue'
+import { auth, db } from '@/auth'
+import { doc, getDoc } from 'firebase/firestore'
 
-
-import HomeView from '../views/HomeView.vue'
-import AboutView from '../views/AboutView.vue'
-import LoginView from '../views/LoginView.vue'
-import AdminPanel from '../views/AdminPanel.vue'
-import MapView from '../views/MapView.vue'
-
-// simple auth state
-import { isLogin } from '../auth'
+function waitForAuthInit() {
+  return new Promise(resolve => {
+    const off = auth.onAuthStateChanged(() => {
+      off()
+      resolve()
+    })
+  })
+}
 
 const routes = [
   { path: '/', name: 'Home', component: HomeView },
-  { path: '/about', name: 'About', component: AboutView, meta: { requiresAuth: true } },
-  { path: '/admin', name: 'Admin', component: AdminPanel, meta: { requiresAuth: true } },
+  { path: '/map', name: 'Map', component: MapView, meta: { requiresAuth: true, roles: ['user','admin'] } },
+  { path: '/admin', name: 'Admin', component: AdminPanel, meta: { requiresAuth: true, roles: ['admin'] } },
   { path: '/login', name: 'Login', component: LoginView },
-  { path: '/map', name: 'Map', component: MapView },
-  { path: '/:pathMatch(.*)*', redirect: { name: 'Home' } }
+  { path: '/:pathMatch(.*)*', redirect: { name: 'Map' } },
 ]
 
 const router = createRouter({
-  history: createWebHistory(), 
-  routes
+  history: createWebHistory(),
+  routes,
 })
 
-// Very simple guard: block protected routes if not logged in
-router.beforeEach((to) => {
-  if (to.meta?.requiresAuth && !isLogin.value) {
-    return { name: 'Login', query: { redirect: to.fullPath } }
+router.beforeEach(async (to, from, next) => {
+  
+  if (!to.meta.requiresAuth) return next()
+
+  await waitForAuthInit()
+  const user = auth.currentUser
+  if (!user) {
+    
+    return next({ name: 'Login', query: { redirect: to.fullPath } })
   }
-  // already logged-in going to login -> send to About
-  if (to.name === 'Login' && isLogin.value) {
-    return { name: 'About' }
+
+  
+  if (to.meta.roles && Array.isArray(to.meta.roles)) {
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid))
+      const role = snap.exists() ? (snap.data().role || 'user') : 'user'
+      if (!to.meta.roles.includes(role)) {
+        
+        return next({ name: 'Map' })
+      }
+    } catch {
+      
+      return next({ name: 'Map' })
+    }
   }
-  return true
+
+  next()
 })
 
 export default router

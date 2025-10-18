@@ -1,10 +1,12 @@
 <script setup>
 import { ref } from 'vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Rating from 'primevue/rating';
+import { useRouter } from 'vue-router'
+import { auth, db } from '@/auth'
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 
-const mark = ref(0)
+const router = useRouter()
+
 const formData = ref({
   username: '',
   gender: '',
@@ -15,50 +17,6 @@ const formData = ref({
   reason: '',
   agree: false
 })
-
-const submittedCards = ref([])
-
-const submitForm = () => {
-  validateName(true)
-  validateEmail(true)
-  validateAge(true)
-  validatePassword(true)
-  validateConfirmPassword(true)
-  validateReason(true)
-
-  // Must agree to terms and conditions
-  if (!formData.value.agree) {
-    errors.value.agree = 'You must agree to the terms and conditions.'
-  } else {
-    errors.value.agree = null
-  }
-
-  const hasBlockingErrors =
-    !!errors.value.username ||
-    !!errors.value.email ||
-    !!errors.value.age ||
-    !!errors.value.password ||
-    !!errors.value.confirmPassword ||
-    !!errors.value.agree
-
-  if (!hasBlockingErrors) {
-    submittedCards.value.push({ ...formData.value })
-    clearForm()
-  }
-}
-
-const clearForm = () => {
-  formData.value = {
-    username: '',
-    gender: '',
-    email: '',
-    age: '',
-    password: '',
-    confirmPassword: '',
-    reason: '',
-    agree: false
-  }
-}
 
 const errors = ref({
   username: null,
@@ -71,9 +29,13 @@ const errors = ref({
   agree: null
 })
 
+const loading = ref(false)
+const errorMsg = ref('')
+const okMsg = ref('')
+
 const validateName = (blur) => {
   if (formData.value.username.length < 3) {
-    if (blur) errors.value.username = 'Name must be at least 3 characters'
+    if (blur) errors.value.username = 'Name must be at least 3 characters.'
   } else {
     errors.value.username = null
   }
@@ -81,9 +43,7 @@ const validateName = (blur) => {
 
 const validateEmail = (blur) => {
   const email = formData.value.email.trim()
-  // Rigorous email verification
-  const re =
-    /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+  const re = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
   if (!email) {
     if (blur) errors.value.email = 'Email is required.'
   } else if (!re.test(email)) {
@@ -96,7 +56,6 @@ const validateEmail = (blur) => {
 const validateAge = (blur) => {
   const n = Number(formData.value.age)
   const isInteger = Number.isInteger(n)
-
   if (formData.value.age === '') {
     if (blur) errors.value.age = 'Age is required.'
   } else if (!isInteger) {
@@ -139,12 +98,94 @@ const validateConfirmPassword = (blur) => {
   }
 }
 
-const validateReason = () => {
-  if (formData.value.reason.toLowerCase().includes('friend')) {
-    errors.value.reason = 'Great to have a friend'
+const validateReason = (blur) => {
+  
+  if (formData.value.reason && formData.value.reason.toLowerCase().includes('friend')) {
+    errors.value.reason = 'Great to have a friend.'
   } else {
     errors.value.reason = null
   }
+}
+
+const submitForm = async () => {
+  errorMsg.value = ''
+  okMsg.value = ''
+
+  
+  validateName(true)
+  validateEmail(true)
+  validateAge(true)
+  validatePassword(true)
+  validateConfirmPassword(true)
+  validateReason(true)
+
+  if (!formData.value.agree) {
+    errors.value.agree = 'You must agree to the terms and conditions.'
+  } else {
+    errors.value.agree = null
+  }
+
+  const hasBlockingErrors =
+    !!errors.value.username ||
+    !!errors.value.email ||
+    !!errors.value.age ||
+    !!errors.value.password ||
+    !!errors.value.confirmPassword ||
+    !!errors.value.agree
+
+  if (hasBlockingErrors) return
+
+  loading.value = true
+  try {
+    
+    const cred = await createUserWithEmailAndPassword(auth, formData.value.email, formData.value.password)
+    const user = cred.user
+
+    
+    if (formData.value.username) {
+      await updateProfile(user, { displayName: formData.value.username })
+    }
+
+    
+    try { await sendEmailVerification(user) } catch {}
+
+    
+    await setDoc(doc(db, 'users', user.uid), {
+      username: formData.value.username,
+      email: formData.value.email,
+      gender: formData.value.gender,
+      age: Number(formData.value.age),
+      reason: formData.value.reason || '',
+      role: 'user',                         
+      createdAt: serverTimestamp(),
+    }, { merge: true })
+
+    okMsg.value = 'Account created successfully.'
+    clearForm()
+    
+    router.push({ name: 'Map' })
+  } catch (e) {
+    errorMsg.value = e?.message || 'Registration failed.'
+  } finally {
+    loading.value = false
+  }
+}
+
+
+const clearForm = () => {
+  formData.value = {
+    username: '',
+    gender: '',
+    email: '',
+    age: '',
+    password: '',
+    confirmPassword: '',
+    reason: '',
+    agree: false
+  }
+  Object.keys(errors.value).forEach(k => (errors.value[k] = null))
+  errorMsg.value = ''
+  okMsg.value = ''
 }
 
 </script>
@@ -155,10 +196,6 @@ const validateReason = () => {
     <div class="row">
       <div class="col-md-8 offset-md-2">
         <h1 class="text-center">Register to get started!</h1>
-        <!---<p class="text-center">
-          Enter your login details below.
-        </p>-->
-        <!-- Add: Youth mental health & wellbeing Explanatory paragraph (left-aligned with Username) -->
         <div class="mb-4 text-start">
           <p class="mb-2">
             Are you in Australia, 12 to 25 or concerned about a young person 12 to 25?
@@ -284,46 +321,16 @@ const validateReason = () => {
           </div>
 
           <div class="text-center">
-            <button type="submit" class="btn btn-primary me-2">Submit</button>
-            <button type="button" class="btn btn-secondary" @click="clearForm">Clear</button>
+            <div class="d-inline-flex gap-2">
+              <button class="btn btn-primary" type="submit" :disabled="loading">
+            {{ loading ? 'Submitting…' : 'Submit' }}</button>
+              <button type="button" class="btn btn-secondary" @click="clearForm" :disabled="loading">Clear</button>
+            </div>
+            <p v-if="errorMsg">{{ errorMsg }}</p>
+            <p v-if="okMsg">{{ okMsg }}</p>
           </div>
         </form>
       </div>
-    </div>
-  </div>
-
-  <!-- PrimeVue DataTable -->
-  <div class="row mt-5">
-    <h4>This is a Primevue Datatable.</h4>
-    <DataTable :value="submittedCards" tableStyle="min-width: 50rem">
-      <Column field="username" header="Username"></Column>
-      <Column field="gender" header="Gender"></Column>
-      <Column field="email" header="E-mail"></Column>
-      <Column field="age" header="Age"></Column>
-      <Column field="reason" header="Reason"></Column>
-    </DataTable>
-  </div>
-
-  <!-- Cards + Rating -->
-  <div class="row mt-5" v-if="submittedCards.length">
-    <div class="d-flex flex-wrap justify-content-start">
-      <div
-        v-for="(card, index) in submittedCards"
-        :key="index"
-        class="card m-2"
-        style="width: 18rem"
-      >
-        <div class="card-header">User Information</div>
-        <ul class="list-group list-group-flush">
-          <li class="list-group-item">Username: {{ card.username }}</li>
-          <li class="list-group-item">E-mail: {{ card.email }}</li>
-          <li class="list-group-item">Age: {{ card.age }}</li>
-          <li class="list-group-item">Gender: {{ card.gender }}</li>
-          <li class="list-group-item">Reason: {{ card.reason }}</li>
-        </ul>
-      </div>
-      <Rating v-model="mark" />
-      <div>Current rate is {{ mark }}</div>
     </div>
   </div>
 </template>
