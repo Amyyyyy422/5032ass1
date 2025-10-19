@@ -33,6 +33,17 @@ const loading = ref(false)
 const errorMsg = ref('')
 const okMsg = ref('')
 
+// Add ARIA support to the error message
+const errorIds = ref({
+  username: 'username-error',
+  email: 'email-error', 
+  age: 'age-error',
+  password: 'password-error',
+  confirmPassword: 'confirm-password-error',
+  reason: 'reason-error',
+  agree: 'agree-error'
+})
+
 const validateName = (blur) => {
   if (formData.value.username.length < 3) {
     if (blur) errors.value.username = 'Name must be at least 3 characters.'
@@ -133,7 +144,14 @@ const submitForm = async () => {
     !!errors.value.confirmPassword ||
     !!errors.value.agree
 
-  if (hasBlockingErrors) return
+  if (hasBlockingErrors) {
+    // Move focus to the first error field
+    const firstErrorField = document.querySelector('[aria-invalid="true"]')
+    if (firstErrorField) {
+      firstErrorField.focus()
+    }
+    return
+  }
 
   loading.value = true
   try {
@@ -166,6 +184,11 @@ const submitForm = async () => {
     router.push({ name: 'Map' })
   } catch (e) {
     errorMsg.value = e?.message || 'Registration failed.'
+    // Add ARIA support to the error message
+    const liveRegion = document.getElementById('live-region')
+    if (liveRegion) {
+      liveRegion.textContent = errorMsg.value
+    }
   } finally {
     loading.value = false
   }
@@ -188,9 +211,22 @@ const clearForm = () => {
   okMsg.value = ''
 }
 
+// Keyboard event handling
+const handleKeyDown = (event, nextFieldId) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    const nextField = document.getElementById(nextFieldId)
+    if (nextField) {
+      nextField.focus()
+    }
+  }
+}
 </script>
 
 <template>
+  <!-- Live region for screen readers -->
+  <div id="live-region" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
+  
   <!-- title -->
   <div class="container mt-5">
     <div class="row">
@@ -211,123 +247,207 @@ const clearForm = () => {
           </ul>
         </div>
 
-        <form @submit.prevent="submitForm">
+        <form @submit.prevent="submitForm" novalidate>
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
-              <label for="username" class="form-label">Username</label>
+              <label for="username" class="form-label fw-semibold">Username <span class="text-danger" aria-hidden="true">*</span></label>
               <input
                 type="text"
                 class="form-control"
+                :class="{ 'is-invalid': errors.username, 'is-valid': formData.username && !errors.username }"
                 id="username"
                 @blur="() => validateName(true)"
                 @input="() => validateName(false)"
+                @keydown="(e) => handleKeyDown(e, 'gender')"
                 v-model="formData.username"
+                :aria-describedby="errorIds.username"
+                :aria-invalid="!!errors.username"
+                :aria-required="true"
+                required
               />
-              <div v-if="errors.username" class="text-danger">{{ errors.username }}</div>
+              <div v-if="errors.username" :id="errorIds.username" class="invalid-feedback" role="alert">
+                {{ errors.username }}
+              </div>
             </div>
 
             <div class="col-md-6 col-sm-6">
-              <label for="gender" class="form-label">Gender</label>
-              <select class="form-select" id="gender" v-model="formData.gender" required>
+              <label for="gender" class="form-label fw-semibold">Gender <span class="text-danger" aria-hidden="true">*</span></label>
+              <select 
+                class="form-select" 
+                :class="{ 'is-invalid': errors.gender, 'is-valid': formData.gender && !errors.gender }"
+                id="gender" 
+                v-model="formData.gender" 
+                @keydown="(e) => handleKeyDown(e, 'email')"
+                :aria-required="true"
+                required
+              >
+                <option value="">Please select</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+              <div v-if="errors.gender" class="invalid-feedback" role="alert">
+                {{ errors.gender }}
+              </div>
             </div>
           </div>
            
           <!-- Add second line: Email / Age -->
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
-              <label for="email" class="form-label">Email</label>
+              <label for="email" class="form-label fw-semibold">Email <span class="text-danger" aria-hidden="true">*</span></label>
               <input
                 type="email"
                 class="form-control"
+                :class="{ 'is-invalid': errors.email, 'is-valid': formData.email && !errors.email }"
                 id="email"
                 @blur="() => validateEmail(true)"
                 @input="() => validateEmail(false)"
+                @keydown="(e) => handleKeyDown(e, 'age')"
                 v-model="formData.email"
+                :aria-describedby="errorIds.email"
+                :aria-invalid="!!errors.email"
+                :aria-required="true"
+                required
               />
-              <div v-if="errors.email" class="text-danger">{{ errors.email }}</div>
+              <div v-if="errors.email" :id="errorIds.email" class="invalid-feedback" role="alert">
+                {{ errors.email }}
+              </div>
             </div>
 
             <div class="col-md-6 col-sm-6">
-              <label for="age" class="form-label">Age</label>
+              <label for="age" class="form-label fw-semibold">Age <span class="text-danger" aria-hidden="true">*</span></label>
               <input
                 type="number"
                 class="form-control"
+                :class="{ 'is-invalid': errors.age, 'is-valid': formData.age && !errors.age }"
                 id="age"
                 @blur="() => validateAge(true)"
                 @input="() => validateAge(false)"
+                @keydown="(e) => handleKeyDown(e, 'password')"
                 v-model="formData.age"
+                :aria-describedby="errorIds.age"
+                :aria-invalid="!!errors.age"
+                :aria-required="true"
+                required
               />
-              <div v-if="errors.age" class="text-danger">{{ errors.age }}</div>
+              <div v-if="errors.age" :id="errorIds.age" class="invalid-feedback" role="alert">
+                {{ errors.age }}
+              </div>
             </div>
           </div>
 
           <div class="row mb-3">
             <div class="col-md-6 col-sm-6">
-              <label for="password" class="form-label">Password</label>
+              <label for="password" class="form-label fw-semibold">Password <span class="text-danger" aria-hidden="true">*</span></label>
               <input
                 type="password"
                 class="form-control"
+                :class="{ 'is-invalid': errors.password, 'is-valid': formData.password && !errors.password }"
                 id="password"
                 @blur="() => validatePassword(true)"
                 @input="() => validatePassword(false)"
+                @keydown="(e) => handleKeyDown(e, 'confirm-password')"
                 v-model="formData.password"
+                :aria-describedby="errorIds.password"
+                :aria-invalid="!!errors.password"
+                :aria-required="true"
+                required
               />
-              <div v-if="errors.password" class="text-danger">{{ errors.password }}</div>
+              <div v-if="errors.password" :id="errorIds.password" class="invalid-feedback" role="alert">
+                {{ errors.password }}
+              </div>
             </div>
 
             <div class="col-md-6 col-sm-6">
-              <label for="confirm-password" class="form-label">Confirm password</label>
+              <label for="confirm-password" class="form-label fw-semibold">Confirm password <span class="text-danger" aria-hidden="true">*</span></label>
               <input
                 type="password"
                 class="form-control"
+                :class="{ 'is-invalid': errors.confirmPassword, 'is-valid': formData.confirmPassword && !errors.confirmPassword && formData.password === formData.confirmPassword }"
                 id="confirm-password"
                 @blur="() => validateConfirmPassword(true)"
                 @input="() => validateConfirmPassword(false)"
+                @keydown="(e) => handleKeyDown(e, 'reason')"
                 v-model="formData.confirmPassword"
+                :aria-describedby="errorIds.confirmPassword"
+                :aria-invalid="!!errors.confirmPassword"
+                :aria-required="true"
+                required
               />
-              <div v-if="errors.confirmPassword" class="text-danger">{{ errors.confirmPassword }}</div>
+              <div v-if="errors.confirmPassword" :id="errorIds.confirmPassword" class="invalid-feedback" role="alert">
+                {{ errors.confirmPassword }}
+              </div>
             </div>
           </div>
 
           <div class="mb-3">
-            <label for="reason" class="form-label">Reason for joining</label>
+            <label for="reason" class="form-label fw-semibold">Reason for joining</label>
             <textarea
               class="form-control"
+              :class="{ 'is-valid': formData.reason && formData.reason.toLowerCase().includes('friend') }"
               id="reason"
               rows="3"
               v-model="formData.reason"
-              @input="validateReason"></textarea>
-            <div v-if="errors.reason" class="friend-alert">{{ errors.reason }}</div>
+              @input="validateReason"
+              @keydown="(e) => handleKeyDown(e, 'agree')"
+              :aria-describedby="errorIds.reason"
+            ></textarea>
+            <div v-if="errors.reason" :id="errorIds.reason" class="form-text friend-alert" role="status">
+              <span class="visually-hidden">Information: </span>{{ errors.reason }}
+            </div>
           </div>
           
           <!-- Terms and conditions checkbox -->
-          <div class="mb-3">
+          <div class="mb-4">
             <div class="form-check">
               <input
                 type="checkbox"
                 class="form-check-input"
+                :class="{ 'is-invalid': errors.agree }"
                 id="agree"
                 v-model="formData.agree"
+                :aria-describedby="errorIds.agree"
+                :aria-invalid="!!errors.agree"
+                :aria-required="true"
+                required
               />
-              <label class="form-check-label" for="agree">
-                I agree to the terms and conditions.
+              <label class="form-check-label fw-semibold" for="agree">
+                I agree to the terms and conditions. <span class="text-danger" aria-hidden="true">*</span>
               </label>
             </div>
-            <div v-if="errors.agree" class="text-danger">{{ errors.agree }}</div>
+            <div v-if="errors.agree" :id="errorIds.agree" class="invalid-feedback d-block" role="alert">
+              {{ errors.agree }}
+            </div>
           </div>
 
           <div class="text-center">
-            <div class="d-inline-flex gap-2">
-              <button class="btn btn-primary" type="submit" :disabled="loading">
-            {{ loading ? 'Submitting…' : 'Submit' }}</button>
-              <button type="button" class="btn btn-secondary" @click="clearForm" :disabled="loading">Clear</button>
+            <div class="d-inline-flex gap-2 flex-wrap justify-content-center">
+              <button 
+                class="btn btn-primary px-4" 
+                type="submit" 
+                :disabled="loading"
+                :aria-describedby="okMsg ? 'success-message' : undefined"
+              >
+                {{ loading ? 'Submitting…' : 'Submit' }}
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-outline-secondary px-4" 
+                @click="clearForm" 
+                :disabled="loading"
+              >
+                Clear
+              </button>
             </div>
-            <p v-if="errorMsg">{{ errorMsg }}</p>
-            <p v-if="okMsg">{{ okMsg }}</p>
+            
+            <!-- message alert -->
+            <div v-if="errorMsg" class="mt-3 alert alert-danger" role="alert" id="error-message">
+              {{ errorMsg }}
+            </div>
+            <div v-if="okMsg" class="mt-3 alert alert-success" role="status" id="success-message">
+              {{ okMsg }}
+            </div>
           </div>
         </form>
       </div>
@@ -341,36 +461,98 @@ const clearForm = () => {
   max-width: 80vw;
   margin: 0 auto;
   padding: 20px;
-  /* background-color: #e0bfbf; */
   border-radius: 10px;
 }
 
-/* Class selectors */
-.form {
-  text-align: center;
-  margin-top: 50px;
+/* Improve focus styles */
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: #275fda;
+  box-shadow: 0 0 0 0.25rem rgba(39, 95, 218, 0.25);
+  outline: 2px solid #275fda;
+  outline-offset: 2px;
 }
 
-/* ID selectors */
-#username:focus,
-#email:focus,
-#password:focus,
+.btn:focus {
+  box-shadow: 0 0 0 0.25rem rgba(39, 95, 218, 0.5);
+  outline: 2px solid #275fda;
+  outline-offset: 2px;
+}
+
+/* Improve the color of the verification status */
+.is-valid {
+  border-color: #198754 !important;
+}
+
+.is-invalid {
+  border-color: #dc3545 !important;
+}
+
+.invalid-feedback {
+  display: block;
+  font-weight: 500;
+}
+
+/* Visual hiding type, for use by screen readers */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Improve contrast */
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.friend-alert {
+  color: #157347; /* Darker green for better contrast */
+  font-weight: 500;
+}
+
+.form-label {
+  color: #2c3e50; /* Darker color for better contrast */
+  margin-bottom: 0.5rem;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .container {
+    max-width: 95vw;
+    padding: 15px;
+  }
+  
+  .d-inline-flex {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+
 .card {
-  border: 1px solid #ccc;
+  border: 2px solid #dee2e6; /* Increase border width for better visibility */
   border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .card-header {
   background-color: #275fda;
   color: white;
-  padding: 10px;
-  border-radius: 10px 10px 0 0;
+  padding: 12px;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
 }
 .list-group-item {
-  padding: 10px;
-}
-
-.friend-alert {
-  color: green;
+  padding: 12px;
+  border-left: 2px solid #275fda;
 }
 </style>

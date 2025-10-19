@@ -179,7 +179,7 @@ const viewRows = computed(() => {
 const selectedRows = ref([])
 
 const exportColumns = [
-  { header: 'name', field: 'name' },
+  { header: 'name', field: 'username' },
   { header: 'email', field: 'email' },
   { header: 'age', field: 'age' },
   { header: 'gender', field: 'gender' },
@@ -228,14 +228,20 @@ const bulkSend = async () => {
     return
   }
 
+  // Add a confirmation box
+  const confirmed = confirm(`Are you sure you want to send emails to ${selectedRows.value.length} user(s)?\n\nThis action cannot be undone.`)
+  if (!confirmed) {
+    return 
+  }
+
   for (const user of selectedRows.value) {
     try {
       await emailjs.send(
         'service_4zpap0t',
-        'template_8ptenqh',
+        'template_lazg9ap',
         {
           to_email: user.email,
-          name: user.name,
+          name: user.username,
           email: 'test@test.com'
         },
         {
@@ -246,6 +252,8 @@ const bulkSend = async () => {
       console.log(error)
     }
   }
+  
+  alert(`Emails sent successfully to ${selectedRows.value.length} user(s)!`)
 }
 
 function normalizeGender(g) {

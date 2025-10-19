@@ -19,15 +19,26 @@ const db = admin.firestore()
  */
 exports.onAuthCreate = functions.auth.user().onCreate(async (user) => {
   const { uid, email, displayName } = user
-  await db.collection('users').doc(uid).set({
-    username: displayName || '',
-    email: email || '',
-    gender: '',                        
-    age: null,
-    role: 'user',                      
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    createdBy: 'onAuthCreate'         
-  }, { merge: true })
+  const ref = db.collection('users').doc(uid)
+  const snap = await ref.get()
+
+  if (!snap.exists) {
+    await ref.set({
+      email: email ?? '',
+      role: 'user',
+      username: displayName ?? '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: 'onAuthCreate',
+    })
+    return
+  }
+
+  const toSet = {}
+  if (!snap.get('email')) toSet.email = email ?? ''
+  if (!snap.get('role'))  toSet.role  = 'user'
+  if (Object.keys(toSet).length) {
+    await ref.set(toSet, { merge: true })
+  }
 })
 
 /**
@@ -91,3 +102,89 @@ exports.getUserStats = functions.https.onRequest(async (req, res) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
+
+
+// ====== Public REST APIs (read-only) ======
+const PAGE_MAX = 200;
+
+function toSafeUser(doc) {
+  const u = doc.data();
+  return {
+    id: doc.id,
+    username: u.username || u.displayName || u.name || '',
+    role: (u.role || 'user'),
+    gender: u.gender || 'unknown',
+    createdAt: (u.createdAt && u.createdAt.toDate ? u.createdAt.toDate().toISOString() : null),
+  };
+}
+
+// API 1: Public User List
+exports.apiUsersPublic = functions.https.onRequest(async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method !== 'GET') return res.status(405).send('Method Not Allowed');
+
+      const role = (req.query.role || '').toString().toLowerCase();       // user | admin
+      const gender = (req.query.gender || '').toString().toLowerCase();   // male | female | other
+      let limit = parseInt(req.query.limit || '50', 10);
+      if (!Number.isFinite(limit) || limit <= 0) limit = 50;
+      limit = Math.min(limit, PAGE_MAX);
+
+      let ref = db.collection('users').orderBy('createdAt', 'desc');
+
+      if (role === 'user' || role === 'admin') ref = ref.where('role', '==', role);
+      if (['male','female','other'].includes(gender)) ref = ref.where('gender', '==', gender);
+
+      // ?cursor=<docId>
+      if (req.query.cursor) {
+        const cursorDoc = await db.collection('users').doc(req.query.cursor.toString()).get();
+        if (cursorDoc.exists) ref = ref.startAfter(cursorDoc);
+      }
+
+      const snap = await ref.limit(limit).get();
+      const items = snap.docs.map(toSafeUser);
+      const nextCursor = snap.docs.length ? snap.docs[snap.docs.length - 1].id : null;
+
+      res.json({ count: items.length, nextCursor, items });
+    } catch (e) {
+      console.error(e);
+      res.status(500).send('Internal Error');
+    }
+  });
+});
+
+// API 2: User statistics summary (aggregated by role/gender)
+exports.apiStatsUsersSummary = functions.https.onRequest(async (req, res) => {
+  return cors(req, res, async () => {
+    try {
+      if (req.method !== 'GET') return res.status(405).send('Method Not Allowed');
+
+      const snap = await db.collection('users').limit(2000).get(); 
+      let total = 0;
+      const byRole = { user: 0, admin: 0, unknown: 0 };
+      const byGender = { male: 0, female: 0, other: 0, unknown: 0 };
+
+      snap.forEach(doc => {
+        total++;
+        const u = doc.data();
+        const role = (u.role || 'unknown').toLowerCase();
+        const gender = (u.gender || 'unknown').toLowerCase();
+
+        (byRole[role] !== undefined ? byRole : byRole)['unknown']++;
+        if (role === 'user' || role === 'admin') byRole[role]++; else byRole.unknown++;
+
+        if (['male','female','other'].includes(gender)) byGender[gender]++; else byGender.unknown++;
+      });
+
+      res.json({ totalUsers: total, byRole, byGender, generatedAt: new Date().toISOString() });
+    } catch (e) {
+      console.error(e);
+      res.status(500).send('Internal Error');
+    }
+  });
+});
+
+// API 3: health examination
+exports.apiHealth = functions.https.onRequest(async (req, res) => {
+  return cors(req, res, async () => res.json({ ok: true, time: new Date().toISOString() }));
+});

@@ -19,14 +19,14 @@ const handleGoAdmin = () => {
     <header class="d-flex justify-content-center py-3">
       <ul class="nav nav-pills">
         <li class="nav-item">
+          <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
+        </li>
+        <li class="nav-item">
           <router-link to="/" class="nav-link" active-class="active" v-if="!isLogin">Create Account</router-link>
         </li>
         
         <li class="nav-item">
           <router-link to="/map" class="nav-link" active-class="active" v-if="isLogin">Map</router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/login" class="nav-link" active-class="active" v-if="!isLogin">Login</router-link>
         </li>
 
         <!--
